@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Memory Match</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500&display=swap');
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root { --ink: #0f0e17; --paper: #f5f2eb; --accent: #ff5c00; --soft: #e8e3d9; --white: #ffffff; }
+
+    body { font-family: 'DM Sans', sans-serif; background: var(--paper); color: var(--ink); min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 1.5rem 1rem 3rem; }
+
+    header { text-align: center; margin-bottom: 1rem; }
+    header h1 { font-family: 'Syne', sans-serif; font-size: clamp(1.8rem, 5vw, 2.6rem); font-weight: 800; letter-spacing: -0.03em; }
+    header h1 span { color: var(--accent); }
+    header p { margin-top: 0.4rem; font-size: 0.9rem; color: #555; }
+
+    /* ============ SETTINGS / SETUP SCREEN ============ */
+    .setup {
+      display: flex;
+      gap: 1.5rem;
+      width: 100%;
+      max-width: 1100px;
+      align-items: flex-start;
+    }
+    .setup.hidden { display: none; }
+
+    .settings-panel {
+      flex: 0 0 320px;
+      background: var(--white);
+      border-radius: 16px;
+      padding: 1.5rem;
+      box-shadow: 0 6px 30px rgba(0,0,0,0.10);
+    }
+    .settings-panel h2 {
+      font-family: 'Syne', sans-serif; font-size: 1.2rem; font-weight: 800;
+      margin-bottom: 1.2rem; letter-spacing: -0.02em;
+    }
+    .field { margin-bottom: 1.5rem; }
+    .field > label.field-label {
+      display: block; font-family: 'Syne', sans-serif; font-weight: 700;
+      font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em;
+      margin-bottom: 0.6rem; color: var(--ink);
+    }
+
+    /* Background option list */
+    .bg-options { display: flex; flex-direction: column; gap: 0.5rem; }
+    .bg-option {
+      display: flex; align-items: center; gap: 0.7rem; cursor: pointer;
+      padding: 0.4rem; border-radius: 10px; border: 2px solid transparent;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .bg-option:hover { background: var(--soft); }
+    .bg-option.active { border-color: var(--accent); background: #fff6f0; }
+    .bg-option .swatch {
+      width: 48px; height: 48px; border-radius: 8px; flex: 0 0 48px;
+      background-size: cover; background-position: center; box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+    }
+    .bg-option .swatch-label { font-size: 0.8rem; font-weight: 500; line-height: 1.2; }
+
+    /* Pair count stepper */
+    .stepper { display: flex; align-items: center; gap: 0.8rem; }
+    .stepper button {
+      width: 38px; height: 38px; border-radius: 10px; border: 2px solid var(--soft);
+      background: var(--white); font-size: 1.3rem; font-family: 'Syne', sans-serif; font-weight: 800;
+      cursor: pointer; color: var(--ink); transition: border-color 0.15s;
+      display: flex; align-items: center; justify-content: center; line-height: 1;
+    }
+    .stepper button:hover:not(:disabled) { border-color: var(--ink); }
+    .stepper button:disabled { opacity: 0.35; cursor: not-allowed; }
+    .stepper .count {
+      font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.4rem;
+      min-width: 2.6rem; text-align: center;
+    }
+    .stepper .count small { display:block; font-family:'DM Sans'; font-weight:400; font-size:0.65rem; color:#888; }
+
+    /* Timer toggle */
+    .seg { display: flex; background: var(--soft); border-radius: 10px; padding: 3px; }
+    .seg button {
+      flex: 1; border: none; background: transparent; cursor: pointer;
+      font-family: 'Syne', sans-serif; font-weight: 700; font-size: 0.78rem;
+      padding: 0.5rem 0.4rem; border-radius: 8px; color: #666; transition: all 0.15s;
+    }
+    .seg button.active { background: var(--white); color: var(--ink); box-shadow: 0 1px 4px rgba(0,0,0,0.12); }
+
+    .countdown-input { margin-top: 0.8rem; display: none; }
+    .countdown-input.show { display: block; }
+    .countdown-input label { font-size: 0.78rem; color: #555; display:block; margin-bottom: 0.35rem; }
+    .time-row { display: flex; align-items: center; gap: 0.5rem; }
+    .time-row input {
+      width: 70px; padding: 0.5rem; border: 2px solid var(--soft); border-radius: 8px;
+      font-family: 'Syne', sans-serif; font-weight: 700; font-size: 1rem; text-align: center;
+    }
+    .time-row input:focus { outline: none; border-color: var(--accent); }
+    .time-row .unit { font-size: 0.85rem; color: #555; }
+    .preset-row { display: flex; gap: 0.4rem; margin-top: 0.5rem; flex-wrap: wrap; }
+    .preset-row button {
+      border: 2px solid var(--soft); background: var(--white); border-radius: 999px;
+      padding: 0.25rem 0.7rem; font-size: 0.72rem; font-weight: 700; cursor: pointer;
+      font-family: 'Syne', sans-serif; color: var(--ink);
+    }
+    .preset-row button:hover { border-color: var(--ink); }
+
+    .play-btn {
+      width: 100%; margin-top: 0.5rem;
+      font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.05rem;
+      padding: 0.9rem; background: var(--accent); color: white; border: none;
+      border-radius: 12px; cursor: pointer; letter-spacing: 0.02em;
+      box-shadow: 0 4px 14px rgba(255,92,0,0.35); transition: transform 0.1s;
+    }
+    .play-btn:hover { transform: translateY(-1px); }
+    .play-btn:active { transform: translateY(0); }
+
+    /* Preview side */
+    .preview-side { flex: 1; min-width: 0; }
+    .preview-label {
+      font-family: 'Syne', sans-serif; font-weight: 700; font-size: 0.8rem;
+      text-transform: uppercase; letter-spacing: 0.05em; color: #888; margin-bottom: 0.5rem;
+    }
+
+    /* ============ GAME SCREEN ============ */
+    .game-screen { display: none; flex-direction: column; align-items: center; width: 100%; }
+    .game-screen.show { display: flex; }
+
+    .stats { display: flex; gap: 1rem; justify-content: center; margin-bottom: 1.2rem; flex-wrap: wrap; }
+    .pill { background: var(--ink); color: var(--white); font-family: 'Syne', sans-serif; font-size: 0.78rem; font-weight: 700; padding: 0.35rem 1rem; border-radius: 999px; letter-spacing: 0.05em; }
+    .pill span { color: var(--accent); }
+    .pill.danger span { color: #ff3b3b; }
+
+    /* The game board holds the background image and all tiles positioned on top */
+    .board {
+      position: relative;
+      width: 100%;
+      max-width: 760px;
+      aspect-ratio: 1 / 1;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 6px 30px rgba(0,0,0,0.15);
+      background-size: cover;
+      background-position: center;
+    }
+    /* Preview board reuses .board styling but is non-interactive */
+    .board.preview .tile { cursor: default; }
+    .board.preview .tile:hover { transform: none; }
+
+    /* Each tile is absolutely positioned using percentages so it scales with the board */
+    .tile {
+      position: absolute;
+      cursor: pointer;
+      perspective: 600px;
+      transition: transform 0.2s;
+    }
+    .tile:hover { transform: scale(1.08); z-index: 20; }
+
+    .tile-inner {
+      position: relative;
+      width: 100%; height: 100%;
+      transform-style: preserve-3d;
+      transition: transform 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .tile.flipped .tile-inner, .tile.matched .tile-inner { transform: rotateY(180deg); }
+
+    .tile-back, .tile-front {
+      position: absolute;
+      width: 100%; height: 100%;
+      backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* The back shows a gemstone image with no square container visible */
+    .tile-back { background: transparent; border: none; box-shadow: none; overflow: visible; }
+    .tile-back img { width: 100%; height: 100%; object-fit: contain; }
+
+    .tile-front { transform: rotateY(180deg); background: var(--white); border-radius: 8px; border: 2px solid rgba(255,255,255,0.7); box-shadow: 0 2px 8px rgba(0,0,0,0.3); overflow: hidden; }
+    .tile-front.picture img { width: 100%; height: 100%; object-fit: cover; }
+    .tile-front.word { background: var(--accent); flex-direction: column; padding: 2px; }
+    .tile-front.word .word-text {
+      font-family: 'Syne', sans-serif; font-weight: 800; color: white;
+      text-transform: uppercase; text-align: center; line-height: 1;
+      font-size: clamp(0.4rem, 1.6vw, 0.85rem);
+      word-break: break-word; overflow-wrap: break-word; width: 100%;
+    }
+    .tile.matched .tile-front { border-color: #2ecc71; box-shadow: 0 0 0 2px #2ecc71, 0 2px 8px rgba(0,0,0,0.3); }
+
+    .controls { margin-top: 1.2rem; display: flex; gap: 0.8rem; flex-wrap: wrap; justify-content: center; }
+    .btn { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 0.85rem; padding: 0.6rem 1.4rem; border-radius: 999px; cursor: pointer; border: 2px solid var(--soft); background: transparent; color: var(--ink); transition: border-color 0.2s; }
+    .btn:hover { border-color: var(--ink); }
+    .btn.primary { background: var(--accent); color: white; border-color: var(--accent); }
+
+    .win-box { display: none; position: fixed; inset: 0; background: rgba(15,14,23,0.7); align-items: center; justify-content: center; z-index: 100; }
+    .win-box.show { display: flex; }
+    .win-inner { background: var(--white); border-radius: 20px; padding: 2.5rem 2rem; text-align: center; max-width: 360px; }
+    .win-inner .trophy { font-size: 3rem; }
+    .win-inner h2 { font-family: 'Syne', sans-serif; font-size: 1.5rem; font-weight: 800; margin: 0.5rem 0; }
+    .win-inner p { color: #555; margin-bottom: 1.2rem; }
+    .win-inner button { font-family: 'Syne', sans-serif; font-weight: 700; padding: 0.8rem 2rem; background: var(--accent); color: white; border: none; border-radius: 12px; cursor: pointer; }
+
+    .hint-note { margin-top: 0.8rem; font-size: 0.8rem; color: #999; text-align: center; max-width: 500px; }
+
+    @media (max-width: 820px) {
+      .setup { flex-direction: column; align-items: stretch; }
+      .settings-panel { flex: 1 1 auto; }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>Memory <span>Game</span></h1>
+    <p>Find the tiles hidden in the picture — match each image to its word</p>
+  </header>
+
+  <!-- ============ SETUP SCREEN ============ -->
+  <div class="setup" id="setupScreen">
+    <div class="settings-panel">
+      <h2>Game Settings</h2>
+
+      <!-- 1. Background select -->
+      <div class="field">
+        <label class="field-label">Background</label>
+        <div class="bg-options" id="bgOptions"></div>
+      </div>
+
+      <!-- 2. Number of pairs -->
+      <div class="field">
+        <label class="field-label">Number of pairs</label>
+        <div class="stepper">
+          <button id="pairMinus" onclick="changePairs(-1)">−</button>
+          <div class="count"><span id="pairCount">5</span><small>pairs</small></div>
+          <button id="pairPlus" onclick="changePairs(1)">+</button>
+        </div>
+      </div>
+
+      <!-- 3. Timer -->
+      <div class="field">
+        <label class="field-label">Timer</label>
+        <div class="seg">
+          <button id="segNone" onclick="setTimerMode('none')">∅ None</button>
+          <button id="segStop" class="active" onclick="setTimerMode('stopclock')">⏱ Stopclock</button>
+          <button id="segCount" onclick="setTimerMode('countdown')">⏳ Countdown</button>
+        </div>
+        <div class="countdown-input" id="countdownInput">
+          <label>Time limit</label>
+          <div class="time-row">
+            <input type="number" id="cdMinutes" min="0" max="59" value="1" />
+            <span class="unit">min</span>
+            <input type="number" id="cdSeconds" min="0" max="59" value="30" />
+            <span class="unit">sec</span>
+          </div>
+          <div class="preset-row">
+            <button onclick="setCountdown(0,20)">0:20</button>
+            <button onclick="setCountdown(0,30)">0:30</button>
+            <button onclick="setCountdown(1,0)">1:00</button>
+            <button onclick="setCountdown(2,0)">2:00</button>
+            <button onclick="setCountdown(3,0)">3:00</button>
+          </div>
+        </div>
+      </div>
+
+      <button class="play-btn" onclick="startGame()">▶ Play Game</button>
+    </div>
+
+    <div class="preview-side">
+      <div class="preview-label">Live preview</div>
+      <div class="board preview" id="previewBoard"></div>
+      <p class="hint-note">This is how your board will look. Tiles are tucked into interesting spots — rooftops, faces, trees and corners.</p>
+    </div>
+  </div>
+
+  <!-- ============ GAME SCREEN ============ -->
+  <div class="game-screen" id="gameScreen">
+    <div class="stats">
+      <div class="pill">Moves: <span id="moves">0</span></div>
+      <div class="pill">Matches: <span id="matches">0</span> / <span id="totalPairs">5</span></div>
+      <div class="pill" id="timerPill">Time: <span id="timer">0s</span></div>
+    </div>
+
+    <div class="board" id="board"></div>
+
+    <div class="controls">
+      <button class="btn" onclick="backToSettings()">⚙ Settings</button>
+      <button class="btn primary" onclick="restartGame()">↺ New Game</button>
+      <button class="btn" onclick="peek()">👁 Peek</button>
+    </div>
+    <p class="hint-note">Tip: tiles are tucked into rooftops, trees, faces and corners. Hover to spot them, then click to flip!</p>
+  </div>
+
+  <!-- ============ WIN / LOSE BOX ============ -->
+  <div class="win-box" id="winBox">
+    <div class="win-inner">
+      <div class="trophy" id="trophy">🏆</div>
+      <h2 id="winTitle">You found them all!</h2>
+      <p id="winMessage"></p>
+      <button onclick="restartGame()">Play Again</button>
+      <button onclick="backToSettings()" style="background:transparent;color:var(--ink);border:2px solid var(--soft);margin-top:0.6rem;">New Game</button>
+    </div>
+  </div>
+
+  <script>
+    // ---- WORD / IMAGE PAIRS (up to 5 pairs) ----
+    const allPairs = [
+      { word: 'tree',      image: 'Pictures/tree.png' },
+      { word: 'ladybird',  image: 'Pictures/ladybird.png' },
+      { word: 'waterfall', image: 'Pictures/waterfall.png' },
+      { word: 'ant',       image: 'Pictures/ant.png' },
+      { word: 'flower',    image: 'Pictures/flower.jpg' },
+    ];
+
+    // ---- BACKGROUNDS with their own hiding spots ----
+    // Each background has up to 10 hand-picked hiding spots placed on interesting
+    // features of that particular painting. Values are % positions; size is % width.
+    const backgrounds = [
+      {
+        id: 'village',
+        label: 'Village',
+        image: 'Backgrounds/Background Village.png',
+        spots: [
+          { left: 11, top: 8,  size: 9  },  // top-left tree foliage
+          { left: 19, top: 27, size: 8  },  // domed tower roof
+          { left: 42, top: 17, size: 7  },  // orange rooftop upper-middle
+          { left: 78, top: 50, size: 10 },  // market stall awning
+          { left: 8,  top: 56, size: 9  },  // lower-left red tiled roof
+          { left: 80, top: 84, size: 8  },  // bottom-right hut roof
+          { left: 50, top: 60, size: 7  },  // plaza ground (centre)
+          { left: 64, top: 38, size: 8  },  // stone house roof
+          { left: 30, top: 75, size: 8  },  // courtyard
+          { left: 90, top: 20, size: 7  },  // top-right corner roof
+        ]
+      },
+      {
+        id: 'beardsley',
+        label: 'Three Cats & Yarn',
+        image: 'Backgrounds/Background beardsley limner.jpeg',
+        // Folk painting: three cats, red yarn ball, decorative scrollwork frieze.
+        spots: [
+          { left: 30, top: 12, size: 9  },  // mother cat's left ear
+          { left: 63, top: 12, size: 8  },  // decorative carved flower (top frieze)
+          { left: 86, top: 9,  size: 8  },  // scrollwork top-right
+          { left: 41, top: 24, size: 7  },  // mother cat's face/eyes
+          { left: 84, top: 30, size: 9  },  // standing kitten's ear (right)
+          { left: 10, top: 40, size: 8  },  // lace curtain folds (left)
+          { left: 22, top: 55, size: 9  },  // small kitten's face (lower-left)
+          { left: 9,  top: 84, size: 10 },  // red yarn ball (bottom-left)
+          { left: 55, top: 60, size: 8  },  // tabby cat's striped body (centre)
+          { left: 88, top: 78, size: 8  },  // white cat's haunch (bottom-right)
+        ]
+      },
+      {
+        id: 'portrait',
+        label: 'Man with a Dog',
+        image: 'Backgrounds/Background portrait of a man with a dog.jpeg',
+        // Portrait format. Man (right), white dog (bottom), landscape (left).
+        spots: [
+          { left: 70, top: 14, size: 9  },  // man's face
+          { left: 22, top: 24, size: 8  },  // blue mountains (landscape)
+          { left: 10, top: 12, size: 8  },  // cloudy sky top-left
+          { left: 28, top: 40, size: 7  },  // golden tree foliage (landscape)
+          { left: 20, top: 47, size: 6  },  // tiny standing figure on the path
+          { left: 9,  top: 60, size: 8  },  // red book on the ledge (left)
+          { left: 88, top: 55, size: 8  },  // dark robe / shoulder (right edge)
+          { left: 33, top: 84, size: 11 },  // white dog's face (bottom)
+          { left: 64, top: 86, size: 8  },  // man's hand on the dog
+          { left: 12, top: 82, size: 8  },  // stone chest (bottom-left corner)
+        ]
+      },
+      {
+        id: 'watson',
+        label: 'Watson & the Shark',
+        image: 'Backgrounds/Background watson and the shark.jpeg',
+        // Wide harbour rescue scene. Boat of figures, swimmer, shark.
+        spots: [
+          { left: 13, top: 16, size: 10 },  // tall sailing ship (top-left)
+          { left: 28, top: 13, size: 7  },  // harbour tower/spire
+          { left: 60, top: 14, size: 8  },  // standing rescuer's head (centre-top)
+          { left: 92, top: 18, size: 8  },  // distant ships (top-right)
+          { left: 73, top: 28, size: 7  },  // boy with the pole's face
+          { left: 40, top: 38, size: 8  },  // rescuers' faces (centre)
+          { left: 18, top: 42, size: 8  },  // boatman reaching out (left)
+          { left: 33, top: 64, size: 8  },  // swimmer's outstretched hand
+          { left: 70, top: 72, size: 11 },  // shark's open jaws (bottom-right)
+          { left: 6,  top: 78, size: 8  },  // water / wave (bottom-left)
+        ]
+      },
+      {
+        id: 'hound',
+        label: 'Seated Hound',
+        image: 'Backgrounds/Background seated hound.jpeg',
+        // Portrait format. Hound under a tree, blue bird, green fence.
+        spots: [
+          { left: 70, top: 12, size: 10 },  // bright tree foliage (top-right)
+          { left: 20, top: 14, size: 8  },  // upper tree canopy (top-left)
+          { left: 12, top: 38, size: 8  },  // green fence rail (left)
+          { left: 44, top: 28, size: 7  },  // tree trunk fork
+          { left: 41, top: 42, size: 10 },  // hound's face
+          { left: 86, top: 45, size: 8  },  // dense foliage (right)
+          { left: 33, top: 66, size: 9  },  // hound's chest/paws
+          { left: 70, top: 76, size: 8  },  // little blue bird (bottom)
+          { left: 12, top: 80, size: 8  },  // shadowed ground (bottom-left)
+          { left: 90, top: 84, size: 7  },  // bottom-right corner
+        ]
+      },
+    ];
+
+    // ---- GEMSTONE TILE BACKS ----
+    const gemBacks = [
+      'Tiles/Tile Aero-Photoroom.png',
+      'Tiles/Tile Amethyst-Photoroom.png',
+      'Tiles/Tile Amber-Photoroom.png',
+      'Tiles/Tile Blue-Photoroom.png',
+      'Tiles/Tile Cherry-Photoroom.png',
+      'Tiles/Tile Classic-Photoroom.png',
+      'Tiles/Tile Heatwave-Photoroom.png',
+      'Tiles/Tile Outrun-Photoroom.png',
+      'Tiles/Tile Pop-Photoroom.png',
+      'Tiles/Tile Xproplus-Photoroom.png',
+    ];
+
+    // ============ SETTINGS STATE ============
+    const settings = {
+      backgroundIndex: 0,
+      pairs: 5,
+      timerMode: 'stopclock',   // 'stopclock' | 'countdown'
+      countdownSeconds: 90,     // used when countdown
+    };
+
+    // ---- Build the background option list ----
+    function buildBgOptions() {
+      const container = document.getElementById('bgOptions');
+      container.innerHTML = '';
+      backgrounds.forEach((bg, i) => {
+        const opt = document.createElement('div');
+        opt.className = 'bg-option' + (i === settings.backgroundIndex ? ' active' : '');
+        opt.onclick = () => selectBackground(i);
+        opt.innerHTML = `
+          <div class="swatch" style="background-image:url('${bg.image}')"></div>
+          <div class="swatch-label">${bg.label}</div>`;
+        container.appendChild(opt);
+      });
+    }
+
+    function selectBackground(i) {
+      settings.backgroundIndex = i;
+      buildBgOptions();
+      renderPreview();
+    }
+
+    // ---- Pair count stepper ----
+    function changePairs(delta) {
+      settings.pairs = Math.max(2, Math.min(5, settings.pairs + delta));
+      document.getElementById('pairCount').textContent = settings.pairs;
+      document.getElementById('pairMinus').disabled = settings.pairs <= 2;
+      document.getElementById('pairPlus').disabled = settings.pairs >= 5;
+      renderPreview();
+    }
+
+    // ---- Timer mode ----
+    function setTimerMode(mode) {
+      settings.timerMode = mode;
+      document.getElementById('segNone').classList.toggle('active', mode === 'none');
+      document.getElementById('segStop').classList.toggle('active', mode === 'stopclock');
+      document.getElementById('segCount').classList.toggle('active', mode === 'countdown');
+      document.getElementById('countdownInput').classList.toggle('show', mode === 'countdown');
+    }
+    function setCountdown(m, s) {
+      document.getElementById('cdMinutes').value = m;
+      document.getElementById('cdSeconds').value = s;
+    }
+    function readCountdownSeconds() {
+      let m = parseInt(document.getElementById('cdMinutes').value, 10) || 0;
+      let s = parseInt(document.getElementById('cdSeconds').value, 10) || 0;
+      m = Math.max(0, Math.min(59, m));
+      s = Math.max(0, Math.min(59, s));
+      let total = m * 60 + s;
+      if (total < 5) total = 5; // minimum sensible limit
+      return total;
+    }
+
+    // ---- Live preview (non-interactive board showing chosen bg + tile layout) ----
+    function renderPreview() {
+      const bg = backgrounds[settings.backgroundIndex];
+      const board = document.getElementById('previewBoard');
+      board.style.backgroundImage = `url('${bg.image}')`;
+      board.innerHTML = '';
+
+      const tileCount = settings.pairs * 2;
+      const spots = bg.spots.slice(0, tileCount);
+      const backs = [...gemBacks].sort(() => Math.random() - 0.5);
+
+      spots.forEach((spot, index) => {
+        const el = document.createElement('div');
+        el.className = 'tile flipped'; // show face-down gem look without animation issues
+        el.classList.remove('flipped');
+        el.style.left = spot.left + '%';
+        el.style.top = spot.top + '%';
+        el.style.width = spot.size + '%';
+        el.style.aspectRatio = '1 / 1';
+
+        const inner = document.createElement('div');
+        inner.className = 'tile-inner';
+        const back = document.createElement('div');
+        back.className = 'tile-back';
+        const gemImg = document.createElement('img');
+        gemImg.src = backs[index % backs.length];
+        gemImg.alt = 'gemstone';
+        back.appendChild(gemImg);
+        inner.appendChild(back);
+        el.appendChild(inner);
+        board.appendChild(el);
+      });
+    }
+
+    // ============ GAME STATE ============
+    let flipped = [], matched = 0, moves = 0, locked = false;
+    let timerInterval, seconds = 0, remaining = 0, gameStarted = false;
+    let activePairs = [], activeSpots = [], activeBg = null;
+    let countdownMode = false, limitSeconds = 0, gameOver = false;
+
+    // Called by the Play Game button: lock in settings and switch screens
+    function startGame() {
+      if (settings.timerMode === 'countdown') {
+        settings.countdownSeconds = readCountdownSeconds();
+      }
+      document.getElementById('setupScreen').classList.add('hidden');
+      document.getElementById('gameScreen').classList.add('show');
+      initGame();
+    }
+
+    function backToSettings() {
+      clearInterval(timerInterval);
+      document.getElementById('gameScreen').classList.remove('show');
+      document.getElementById('setupScreen').classList.remove('hidden');
+      document.getElementById('winBox').className = 'win-box';
+      renderPreview();
+    }
+
+    function restartGame() {
+      document.getElementById('winBox').className = 'win-box';
+      initGame();
+    }
+
+    function initGame() {
+      flipped = []; matched = 0; moves = 0; locked = false;
+      seconds = 0; gameStarted = false; gameOver = false;
+      clearInterval(timerInterval);
+
+      // Lock in choices for this round
+      activeBg = backgrounds[settings.backgroundIndex];
+      activePairs = allPairs.slice(0, settings.pairs);
+      countdownMode = settings.timerMode === 'countdown';
+      const noTimer = settings.timerMode === 'none';
+      limitSeconds = settings.countdownSeconds;
+      remaining = limitSeconds;
+
+      document.getElementById('moves').textContent = 0;
+      document.getElementById('matches').textContent = 0;
+      document.getElementById('totalPairs').textContent = settings.pairs;
+      document.getElementById('winBox').className = 'win-box';
+
+      // Timer display setup
+      const timerPill = document.getElementById('timerPill');
+      timerPill.classList.remove('danger');
+      if (settings.timerMode === 'none') {
+        timerPill.style.display = 'none';
+      } else {
+        timerPill.style.display = '';
+        if (countdownMode) {
+          timerPill.firstChild.textContent = 'Left: ';
+          document.getElementById('timer').textContent = formatTime(remaining);
+        } else {
+          timerPill.firstChild.textContent = 'Time: ';
+          document.getElementById('timer').textContent = '0s';
+        }
+      }
+
+      const board = document.getElementById('board');
+      board.style.backgroundImage = `url('${activeBg.image}')`;
+      board.innerHTML = '';
+
+      // Build deck: a picture tile + a word tile per pair
+      let tiles = [];
+      activePairs.forEach((pair, i) => {
+        tiles.push({ type: 'picture', pairId: i, pair });
+        tiles.push({ type: 'word',    pairId: i, pair });
+      });
+      tiles.sort(() => Math.random() - 0.5);
+
+      // Use this background's spots, shuffled, trimmed to tile count
+      const spots = [...activeBg.spots].sort(() => Math.random() - 0.5).slice(0, tiles.length);
+      const backs = [...gemBacks].sort(() => Math.random() - 0.5);
+
+      tiles.forEach((tile, index) => {
+        const spot = spots[index];
+        const el = document.createElement('div');
+        el.className = 'tile';
+        el.dataset.pairId = tile.pairId;
+        el.style.left = spot.left + '%';
+        el.style.top = spot.top + '%';
+        el.style.width = spot.size + '%';
+        el.style.aspectRatio = '1 / 1';
+
+        const inner = document.createElement('div');
+        inner.className = 'tile-inner';
+
+        const back = document.createElement('div');
+        back.className = 'tile-back';
+        const gemImg = document.createElement('img');
+        gemImg.src = backs[index % backs.length];
+        gemImg.alt = 'gemstone';
+        back.appendChild(gemImg);
+
+        const front = document.createElement('div');
+        if (tile.type === 'picture') {
+          front.className = 'tile-front picture';
+          const img = document.createElement('img');
+          img.src = tile.pair.image;
+          img.alt = tile.pair.word;
+          front.appendChild(img);
+        } else {
+          front.className = 'tile-front word';
+          front.innerHTML = `<div class="word-text">${tile.pair.word}</div>`;
+        }
+
+        inner.appendChild(back);
+        inner.appendChild(front);
+        el.appendChild(inner);
+        el.addEventListener('click', () => flipTile(el));
+        board.appendChild(el);
+      });
+    }
+
+    function formatTime(totalSec) {
+      if (totalSec < 60) return totalSec + 's';
+      const m = Math.floor(totalSec / 60);
+      const s = totalSec % 60;
+      return m + ':' + String(s).padStart(2, '0');
+    }
+
+    function startTimer() {
+      gameStarted = true;
+      if (settings.timerMode === 'none') return;
+      timerInterval = setInterval(() => {
+        if (countdownMode) {
+          remaining--;
+          document.getElementById('timer').textContent = formatTime(remaining);
+          if (remaining <= 10) document.getElementById('timerPill').classList.add('danger');
+          if (remaining <= 0) {
+            clearInterval(timerInterval);
+            timeUp();
+          }
+        } else {
+          seconds++;
+          document.getElementById('timer').textContent = seconds + 's';
+        }
+      }, 1000);
+    }
+
+    function flipTile(el) {
+      if (locked || gameOver) return;
+      if (el.classList.contains('flipped') || el.classList.contains('matched')) return;
+      if (flipped.length === 2) return;
+
+      if (!gameStarted) startTimer();
+
+      el.classList.add('flipped');
+      flipped.push(el);
+
+      if (flipped.length === 2) {
+        moves++;
+        document.getElementById('moves').textContent = moves;
+        locked = true;
+        setTimeout(checkMatch, 800);
+      }
+    }
+
+    function checkMatch() {
+      const [a, b] = flipped;
+      if (a.dataset.pairId === b.dataset.pairId) {
+        a.classList.add('matched');
+        b.classList.add('matched');
+        matched++;
+        document.getElementById('matches').textContent = matched;
+        if (matched === activePairs.length) {
+          clearInterval(timerInterval);
+          setTimeout(showWin, 500);
+        }
+      } else {
+        a.classList.remove('flipped');
+        b.classList.remove('flipped');
+      }
+      flipped = [];
+      locked = false;
+    }
+
+    // Briefly reveal all tiles to help players locate them
+    function peek() {
+      if (locked || gameOver) return;
+      const tiles = document.querySelectorAll('.tile:not(.matched)');
+      tiles.forEach(t => t.classList.add('flipped'));
+      locked = true;
+      setTimeout(() => {
+        tiles.forEach(t => { if (!t.classList.contains('matched')) t.classList.remove('flipped'); });
+        locked = false;
+        flipped = [];
+      }, 1000);
+    }
+
+    function showWin() {
+      document.getElementById('trophy').textContent = '🏆';
+      document.getElementById('winTitle').textContent = 'You found them all!';
+      let timeText;
+      if (settings.timerMode === 'none') {
+        timeText = `in ${moves} moves`;
+      } else if (countdownMode) {
+        timeText = `in ${moves} moves, with ${formatTime(remaining)} to spare`;
+      } else {
+        timeText = `in ${moves} moves — your time was ${formatTime(seconds)}`;
+      }
+      document.getElementById('winMessage').textContent = `You finished ${timeText}!`;
+      document.getElementById('winBox').className = 'win-box show';
+    }
+
+    function timeUp() {
+      gameOver = true;
+      locked = true;
+      document.getElementById('trophy').textContent = '⏳';
+      document.getElementById('winTitle').textContent = "Time's up!";
+      document.getElementById('winMessage').textContent =
+        `You matched ${matched} of ${activePairs.length} pairs in ${moves} moves. Try again!`;
+      document.getElementById('winBox').className = 'win-box show';
+    }
+
+    // ---- Boot ----
+    buildBgOptions();
+    changePairs(0);     // set stepper button states
+    renderPreview();
+  </script>
+</body>
+</html>
+
